@@ -1,5 +1,5 @@
 const Invoice = require("../models/invoicemodel");
-const InvoiceItem = require("../models/invoiceItemModel");
+const InvoiceItem = require("../models/invoiceitemmodel");
 const validateInvoice = require("../validation/invoiceValidation");
 const parseExcelFile = require("../utils/excelParser");
 const uploadToS3 = require("../utils/uploadToS3");
