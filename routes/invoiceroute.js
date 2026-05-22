@@ -5,33 +5,35 @@ const invoiceController = require("../controller/invoicecontroller");
 const upload = require("../middleware/uploadmiddleware");
 
 
-// Create invoice with multiple excel files
+// Create invoice
 router.post(
   "/create",
   upload.array("invoiceFiles"),
   invoiceController.createInvoice
 );
 
+// Get all invoices
+router.get(
+  "/invoices",
+  invoiceController.getAllInvoices
+);
 
-// Add more files to existing invoice
+// Add files
 router.post(
   "/:invoiceId/add-files",
   upload.array("invoiceFiles"),
   invoiceController.addInvoiceFiles
 );
 
-
-// Get invoice details
-router.get(
-  "/:invoiceId",
-  invoiceController.getInvoice
-);
-
-
-// Get all invoice items
+// Get invoice items
 router.get(
   "/:invoiceId/items",
   invoiceController.getInvoiceItems
 );
 
+// Get single invoice
+router.get(
+  "/:invoiceId",
+  invoiceController.getInvoice
+);
 module.exports = router;
