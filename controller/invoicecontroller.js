@@ -5,7 +5,7 @@ const parseExcelFile = require("../utils/excelParser");
 const uploadToS3 = require("../utils/uploadToS3");
 
 // Create Invoice
-exports.createInvoice = async (req, res) => {
+exports.createInvoice = async (req, res) =>{
   try {
     const { error } = validateInvoice(req.body);
 
@@ -22,8 +22,7 @@ exports.createInvoice = async (req, res) => {
         message: "At least one Excel file is required",
       });
     }
-
-    const {
+     const {
       invoiceName,
       invoiceNumber,
       invoiceDate,
