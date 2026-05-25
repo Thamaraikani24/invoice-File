@@ -5,7 +5,9 @@ const parseExcelFile = require("../utils/excelParser");
 const uploadToS3 = require("../utils/uploadToS3");
 
 // Create Invoice
-exports.createInvoice = async (req, res) =>{
+exports.createInvoice = async (req, res) => {
+  let totalAmount = 0;
+let allInvoiceItems = [];
   try {
     const { error } = validateInvoice(req.body);
 
@@ -22,19 +24,20 @@ exports.createInvoice = async (req, res) =>{
         message: "At least one Excel file is required",
       });
     }
-     const {
+
+    const {
       invoiceName,
       invoiceNumber,
       invoiceDate,
       invoiceTo,
-    } = req.body;
+    } = req.body || {};
 
     const existingInvoice = await Invoice.findOne({ invoiceNumber });
 
     if (existingInvoice) {
       return res.status(400).json({
         success: false,
-        message: "Invoice number already exists",
+        message: "Invoice number already exists", 
       });
     }
 
@@ -43,56 +46,69 @@ exports.createInvoice = async (req, res) =>{
       invoiceNumber,
       invoiceDate,
       invoiceTo,
+      history: [
+        {
+          action: "Created",
+          note: "Invoice created successfully",
+        },
+      ],
     });
 
-    let totalAmount = 0;
-
-    console.log("Files Count:", req.files.length);
-    console.log(req.files);
+    // let totalAmount = 0;
 
     for (const file of req.files) {
-      const items = parseExcelFile(file.buffer);
-      console.log("file.buffer:",file.buffer);
-      console.log("Parsed Items:", items);
+  const items = parseExcelFile(file.buffer);
 
-      const itemCount = items.length;
+  const itemCount = items.length;
 
-      const fileTotal = items.reduce((sum, item) => {
-      console.log("Item Price Check:", item.itemPrice, item["item Price"]);
+  const invoiceItems = items.map((item) => ({
+    invoiceId: invoice._id,
+    itemData: item,
+  }));
 
-        return sum + Number(item.itemPrice || item["item Price"] || 0);
-      }, 0);
+  const savedItems = await InvoiceItem.insertMany(invoiceItems);
 
-      const uploadedFile = await uploadToS3(file, invoiceNumber);
+  allInvoiceItems.push(...savedItems);
 
-      const invoiceItems = items.map((item) => ({
-          invoiceId: invoice._id,
-          serialNum: item.serialNum || item["serial Num"],
-          itemName: item.itemName || item["item Name"],
-          itemPrice: item.itemPrice || item["item Price"],
-}));
+ const fileTotal = items.reduce((sum, item) => {
+  const keys = Object.keys(item);
 
-      await InvoiceItem.insertMany(invoiceItems);
+  const amountKey = keys.find((key) => {
+    const lowerKey = key.toLowerCase();
+    return (
+      lowerKey.includes("price") ||
+      lowerKey.includes("amount") ||
+      lowerKey.includes("total")
+    );
+  });
 
-      invoice.uploadedFiles.push({
-        fileName: uploadedFile.fileName,
-        fileUrl: uploadedFile.fileUrl,
-        fileTotal,
-        itemCount,
-      });
 
-      totalAmount += fileTotal;
-    }
+  return sum + Number(item[amountKey] || 0);
+}, 0);
+  const uploadedFile = await uploadToS3(file, invoiceNumber);
+
+  invoice.uploadedFiles.push({
+    fileName: uploadedFile.fileName,
+    fileUrl: uploadedFile.fileUrl,
+    fileTotal,
+    itemCount,
+  });
+
+  totalAmount += fileTotal;
+}
 
     invoice.totalAmount = totalAmount;
 
     await invoice.save();
 
     return res.status(201).json({
-      success: true,
-      message: "Invoice created successfully",
-      data: invoice,
-    });
+  success: true,
+  message: "Invoice created successfully",
+  data: {
+    ...invoice.toObject(),
+    items: allInvoiceItems,
+  },
+});
 
   } catch (error) {
     return res.status(500).json({
@@ -101,10 +117,11 @@ exports.createInvoice = async (req, res) =>{
     });
   }
 };
+
 // Add More Files
 exports.addInvoiceFiles = async (req, res) => {
   try {
-    const { invoiceId } = req.params;
+    const { id } = req.params;
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
@@ -127,29 +144,36 @@ exports.addInvoiceFiles = async (req, res) => {
     for (const file of req.files) {
       const items = parseExcelFile(file.buffer);
 
-      console.log("file.buffer:",file.buffer);
-
-      console.log("Parsed Items:", items);
-
       const itemCount = items.length;
 
-      const fileTotal = items.reduce((sum, item) => {
-        console.log("Item price check:", item.itemPrice, item["item Price"]); 
-        return sum + Number(item.itemPrice || item["item Price"] || 0);
-      }, 0);
+     // const savedItems = await InvoiceItem.insertMany(invoiceItems);
+allInvoiceItems.push(...savedItems);
+
+     const fileTotal = items.reduce((sum, item) => {
+  const keys = Object.keys(item);
+
+  const amountKey = keys.find((key) => {
+    const lowerKey = key.toLowerCase();
+    return (
+      lowerKey.includes("price") ||
+      lowerKey.includes("amount") ||
+      lowerKey.includes("total")
+    );
+  });
+
+
+  return sum + Number(item[amountKey] || 0);
+}, 0);
 
       const uploadedFile = await uploadToS3(
         file,
         invoice.invoiceNumber
       );
 
-       const invoiceItems = items.map((item) => ({
-          invoiceId: invoice._id,
-          serialNum: item.serialNum || item["serial Num"],
-          itemName: item.itemName || item["item Name"],
-          itemPrice: item.itemPrice || item["item Price"],
+      const invoiceItems = items.map((item) => ({
+  invoiceId: invoice._id,
+  itemData: item,
 }));
-
 
       await InvoiceItem.insertMany(invoiceItems);
 
@@ -164,6 +188,11 @@ exports.addInvoiceFiles = async (req, res) => {
     }
 
     invoice.totalAmount += newTotal;
+
+    invoice.history.push({
+      action: "Files Added",
+      note: `${req.files.length} file(s) uploaded`,
+    });
 
     await invoice.save();
 
@@ -180,8 +209,81 @@ exports.addInvoiceFiles = async (req, res) => {
     });
   }
 };
-// Get Invoice
-exports.getInvoice = async (req, res) => {
+
+// Update Invoice
+exports.updateInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { invoiceName, invoiceDate, invoiceTo } = req.body;
+
+    const invoice = await Invoice.findById(id);
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    if (invoiceName) {
+      invoice.invoiceName = invoiceName;
+    }
+
+    if (invoiceDate) {
+      invoice.invoiceDate = invoiceDate;
+    }
+
+    if (invoiceTo) {
+      invoice.invoiceTo = invoiceTo;
+    }
+
+    const invoiceItems = await InvoiceItem.find({
+      invoiceId: invoice._id,
+    });
+
+    let totalAmount = 0;
+
+    for (const item of invoiceItems) {
+      const amountKey = Object.keys(item.itemData).find((key) => {
+        const lowerKey = key.toLowerCase();
+
+        return (
+          lowerKey.includes("price") ||
+          lowerKey.includes("amount") ||
+          lowerKey.includes("total")
+        );
+      });
+
+      if (amountKey) {
+        totalAmount += Number(item.itemData[amountKey] || 0);
+      }
+    }
+
+    invoice.totalAmount = totalAmount;
+
+    invoice.history.push({
+      action: "Updated",
+      note: "Invoice details updated",
+    });
+
+    await invoice.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice updated successfully",
+      data: invoice,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Delete Invoice
+exports.deleteInvoice = async (req, res) => {
   try {
     const { invoiceId } = req.params;
 
@@ -194,9 +296,15 @@ exports.getInvoice = async (req, res) => {
       });
     }
 
+    await InvoiceItem.deleteMany({
+      invoiceId: invoice._id,
+    });
+
+    await Invoice.findByIdAndDelete(invoiceId);
+
     return res.status(200).json({
       success: true,
-      data: invoice,
+      message: "Invoice deleted successfully",
     });
 
   } catch (error) {
@@ -206,15 +314,81 @@ exports.getInvoice = async (req, res) => {
     });
   }
 };
+
+// Get Single Invoice with Items
+exports.getSingleInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await Invoice.findById(id);
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    const invoiceItems = await InvoiceItem.find({
+      invoiceId: invoice._id,
+    });
+
+    let totalAmount = 0;
+
+for (const item of invoiceItems) {
+  const amountKey = Object.keys(item.itemData).find((key) => {
+    const lowerKey = key.toLowerCase();
+
+    return (
+      lowerKey.includes("price") ||
+      lowerKey.includes("amount") ||
+      lowerKey.includes("total")
+    );
+  });
+
+  if (amountKey) {
+    totalAmount += Number(item.itemData[amountKey] || 0);
+  }
+}
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice fetched successfully",
+      data: {
+  ...invoice.toObject(),
+  totalAmount,
+  items: invoiceItems,
+}
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // Get Invoice Items
 exports.getInvoiceItems = async (req, res) => {
   try {
     const { invoiceId } = req.params;
 
+    const invoice = await Invoice.findById(invoiceId);
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
     const items = await InvoiceItem.find({ invoiceId });
 
     return res.status(200).json({
       success: true,
+      totalAmount: invoice.totalAmount,
+      itemCount: items.length,
       data: items,
     });
 
@@ -225,13 +399,47 @@ exports.getInvoiceItems = async (req, res) => {
     });
   }
 };
+
+// Get All Invoices with Items
 exports.getAllInvoices = async (req, res) => {
   try {
     const invoices = await Invoice.find().sort({ createdAt: -1 });
 
+    const invoiceData = await Promise.all(
+      invoices.map(async (invoice) => {
+        const items = await InvoiceItem.find({
+          invoiceId: invoice._id,
+        });
+
+        return {
+          ...invoice.toObject(),
+          items,
+        };
+      })
+    );
+
     return res.status(200).json({
       success: true,
-      count: invoices.length,
+      count: invoiceData.length,
+      data: invoiceData,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.getDeletedInvoices = async (req, res) => {
+  try {
+    const invoices = await Invoice.find({
+      isDeleted: true,
+    });
+
+    return res.status(200).json({
+      success: true,
       data: invoices,
     });
 

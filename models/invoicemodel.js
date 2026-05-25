@@ -7,27 +7,41 @@ const uploadedFileSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
     fileUrl: {
       type: String,
       required: true,
     },
-
     fileTotal: {
       type: Number,
       required: true,
       default: 0,
       min: 0,
     },
-
     itemCount: {
       type: Number,
       required: true,
       default: 0,
       min: 0,
     },
-
     uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
+const historySchema = new mongoose.Schema(
+  {
+    action: {
+      type: String,
+      required: true,
+    },
+    note: {
+      type: String,
+      default: "",
+    },
+    actionDate: {
       type: Date,
       default: Date.now,
     },
@@ -42,34 +56,33 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
     invoiceNumber: {
       type: String,
       required: true,
       unique: true,
       trim: true,
     },
-
     invoiceDate: {
       type: Date,
       required: true,
     },
-
     invoiceTo: {
       type: String,
       required: true,
       trim: true,
     },
-
     uploadedFiles: {
       type: [uploadedFileSchema],
       default: [],
     },
-
     totalAmount: {
       type: Number,
       default: 0,
       min: 0,
+    },
+    history: {
+      type: [historySchema],
+      default: [],
     },
   },
   {

@@ -9,26 +9,15 @@ const invoiceItemSchema = new mongoose.Schema(
       index: true,
     },
 
-    serialNum: {
-      type: Number,
+     itemData: {
+      type: mongoose.Schema.Types.Mixed,
       required: true,
-    },
-
-    itemName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    itemPrice: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
+    }
   },
   {
     timestamps: true,
   }
 );
+  
 
 module.exports = mongoose.model("InvoiceItem", invoiceItemSchema);
