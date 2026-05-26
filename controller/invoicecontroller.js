@@ -17,21 +17,19 @@ let allInvoiceItems = [];
         message: error.details[0].message,
       });
     }
-
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
         message: "At least one Excel file is required",
       });
     }
-
     const {
       invoiceName,
       invoiceNumber,
       invoiceDate,
       invoiceTo,
     } = req.body || {};
-
+    
     const existingInvoice = await Invoice.findOne({ invoiceNumber });
 
     if (existingInvoice) {
