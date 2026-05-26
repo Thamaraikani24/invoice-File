@@ -120,10 +120,14 @@ let allInvoiceItems = [];
 
 // Add More Files
 exports.addInvoiceFiles = async (req, res) => {
+  
   try {
-    const { id } = req.params;
+    const { invoiceId } = req.params;
+    const files = req.files;
 
-    if (!req.files || req.files.length === 0) {
+    console.log("invoiceId:", invoiceId);
+
+    if (!files || files.length === 0) {
       return res.status(400).json({
         success: false,
         message: "At least one Excel file is required",
@@ -141,19 +145,17 @@ exports.addInvoiceFiles = async (req, res) => {
 
     let newTotal = 0;
 
-    for (const file of req.files) {
+    for (const file of files) {
       const items = parseExcelFile(file.buffer);
+       console.log("FULL ITEMS:", JSON.stringify(items, null, 2));  //
 
       const itemCount = items.length;
 
-     // const savedItems = await InvoiceItem.insertMany(invoiceItems);
-allInvoiceItems.push(...savedItems);
-
-     const fileTotal = items.reduce((sum, item) => {
+      const fileTotal = items.reduce((sum, item) => {
   const keys = Object.keys(item);
 
-  const amountKey = keys.find((key) => {
-    const lowerKey = key.toLowerCase();
+  const amountKey = keys.find((key) => { 
+    const lowerKey = key.toLowerCase().trim();
     return (
       lowerKey.includes("price") ||
       lowerKey.includes("amount") ||
@@ -161,8 +163,17 @@ allInvoiceItems.push(...savedItems);
     );
   });
 
+  if (!amountKey) return sum;
 
-  return sum + Number(item[amountKey] || 0);
+  let amount = item[amountKey];
+
+  if (typeof amount === "string") {
+    amount = amount.replace(/,/g, "").trim();
+  }
+
+  amount = Number(amount) || 0;
+
+  return sum + amount;
 }, 0);
 
       const uploadedFile = await uploadToS3(
@@ -171,9 +182,9 @@ allInvoiceItems.push(...savedItems);
       );
 
       const invoiceItems = items.map((item) => ({
-  invoiceId: invoice._id,
-  itemData: item,
-}));
+        invoiceId: invoice._id,
+        itemData: item,
+      }));
 
       await InvoiceItem.insertMany(invoiceItems);
 
@@ -187,11 +198,10 @@ allInvoiceItems.push(...savedItems);
       newTotal += fileTotal;
     }
 
-    invoice.totalAmount += newTotal;
-
+invoice.totalAmount = (invoice.totalAmount || 0) + newTotal;
     invoice.history.push({
       action: "Files Added",
-      note: `${req.files.length} file(s) uploaded`,
+      note: `${files.length} file(s) uploaded`,
     });
 
     await invoice.save();
@@ -209,14 +219,13 @@ allInvoiceItems.push(...savedItems);
     });
   }
 };
-
 // Update Invoice
 exports.updateInvoice = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { invoiceId } = req.params;
     const { invoiceName, invoiceDate, invoiceTo } = req.body;
 
-    const invoice = await Invoice.findById(id);
+    const invoice = await Invoice.findById(invoiceId);
 
     if (!invoice) {
       return res.status(404).json({
@@ -318,9 +327,9 @@ exports.deleteInvoice = async (req, res) => {
 // Get Single Invoice with Items
 exports.getSingleInvoice = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { invoiceId } = req.params;
 
-    const invoice = await Invoice.findById(id);
+    const invoice = await Invoice.findById(invoiceId);
 
     if (!invoice) {
       return res.status(404).json({

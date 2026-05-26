@@ -7,39 +7,39 @@ const upload = require("../middleware/uploadmiddleware");
 router.post(
   "/create",
   upload.array("invoiceFiles"),
-  invoiceController.createInvoice
+  invoiceController.createInvoice      // create invoice with multiple files
 );
 
 router.get(
   "/invoices",
-  invoiceController.getAllInvoices
+  invoiceController.getAllInvoices   // get all invoices
 );
 
 router.post(
   "/:invoiceId/add-files",
   upload.array("invoiceFiles"),
-  invoiceController.addInvoiceFiles
+  invoiceController.addInvoiceFiles   // add more files to existing invoice
 );
 
 router.get(
   "/:invoiceId/items",
-  invoiceController.getInvoiceItems
+  invoiceController.getInvoiceItems   // get items for a specific invoice
 );
 
 router.get(
-  "/:id",
-  invoiceController.getSingleInvoice
+  "/:invoiceId",
+  invoiceController.getSingleInvoice    // get single invoice with items
 );
 
 router.put(
-  "/:id",
+  "/:invoiceId",
   upload.array("invoiceFiles"),
-  invoiceController.updateInvoice
+  invoiceController.updateInvoice    // update invoice
 );
 
 router.delete(
-  "/:id",
-  invoiceController.deleteInvoice
+  "/:invoiceId",
+  invoiceController.deleteInvoice   // delete invoice
 );
 
 module.exports = router;
