@@ -123,10 +123,9 @@ exports.addInvoiceFiles = async (req, res) => {
     const { invoiceId } = req.params;
     const files = req.files;
 
-    console.log("invoiceId:", invoiceId);
 
     if (!files || files.length === 0) {
-      return res.status(400).json({
+      return res.status(400).json({                  // This is the validation point for the files
         success: false,
         message: "At least one Excel file is required",
       });
@@ -145,7 +144,6 @@ exports.addInvoiceFiles = async (req, res) => {
 
     for (const file of files) {
       const items = parseExcelFile(file.buffer);
-       console.log("FULL ITEMS:", JSON.stringify(items, null, 2));  //
 
       const itemCount = items.length;
 
@@ -161,12 +159,12 @@ exports.addInvoiceFiles = async (req, res) => {
     );
   });
 
-  if (!amountKey) return sum;
+  if (!amountKey) return sum;   
 
-  let amount = item[amountKey];
+  let amount = item[amountKey];    
 
   if (typeof amount === "string") {
-    amount = amount.replace(/,/g, "").trim();
+    amount = amount.replace(/,/g, "").trim();    // remove commas and trim whitespace
   }
 
   amount = Number(amount) || 0;
@@ -175,7 +173,7 @@ exports.addInvoiceFiles = async (req, res) => {
 }, 0);
 
       const uploadedFile = await uploadToS3(
-        file,
+        file,                                         // file upload to s3
         invoice.invoiceNumber
       );
 

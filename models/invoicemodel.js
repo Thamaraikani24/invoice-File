@@ -80,10 +80,7 @@ const invoiceSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    history: {
-      type: [historySchema],
-      default: [],
-    },
+    
   },
   {
     timestamps: true,
