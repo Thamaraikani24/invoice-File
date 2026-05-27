@@ -195,6 +195,10 @@ exports.addInvoiceFiles = async (req, res) => {
     }
 
 invoice.totalAmount = (invoice.totalAmount || 0) + newTotal;
+
+if (!invoice.history) {
+  invoice.history = [];
+}
     invoice.history.push({
       action: "Files Added",
       note: `${files.length} file(s) uploaded`,
@@ -265,6 +269,11 @@ exports.updateInvoice = async (req, res) => {
     }
 
     invoice.totalAmount = totalAmount;
+
+    if (!invoice.history) {
+  invoice.history = [];
+}
+
 
     invoice.history.push({
       action: "Updated",
