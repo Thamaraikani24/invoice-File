@@ -10,7 +10,7 @@ exports.createInvoice = async (req, res) => {
 let allInvoiceItems = [];
   try {
     const { error } = validateInvoice(req.body);
-
+   
     if (error) {
       return res.status(400).json({
         success: false,
@@ -52,20 +52,15 @@ let allInvoiceItems = [];
       ],
     });
 
-    // let totalAmount = 0;
-
     for (const file of req.files) {
   const items = parseExcelFile(file.buffer);
-
   const itemCount = items.length;
-
   const invoiceItems = items.map((item) => ({
     invoiceId: invoice._id,
     itemData: item,
   }));
 
   const savedItems = await InvoiceItem.insertMany(invoiceItems);
-
   allInvoiceItems.push(...savedItems);
 
  const fileTotal = items.reduce((sum, item) => {
@@ -79,9 +74,7 @@ let allInvoiceItems = [];
       lowerKey.includes("total")
     );
   });
-
-
-  return sum + Number(item[amountKey] || 0);
+   return sum + Number(item[amountKey] || 0);
 }, 0);
   const uploadedFile = await uploadToS3(file, invoiceNumber);
 
@@ -94,12 +87,9 @@ let allInvoiceItems = [];
 
   totalAmount += fileTotal;
 }
-
-    invoice.totalAmount = totalAmount;
-
-    await invoice.save();
-
-    return res.status(201).json({
+invoice.totalAmount = totalAmount;
+await invoice.save();
+return res.status(201).json({
   success: true,
   message: "Invoice created successfully",
   data: {
@@ -107,8 +97,8 @@ let allInvoiceItems = [];
     items: allInvoiceItems,
   },
 });
-
-  } catch (error) {
+} 
+catch (error) {
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -122,7 +112,6 @@ exports.addInvoiceFiles = async (req, res) => {
   try {
     const { invoiceId } = req.params;
     const files = req.files;
-
 
     if (!files || files.length === 0) {
       return res.status(400).json({                  // This is the validation point for the files
@@ -196,12 +185,10 @@ exports.addInvoiceFiles = async (req, res) => {
 
 invoice.totalAmount = (invoice.totalAmount || 0) + newTotal;
 
-if (!invoice.history) {
-  invoice.history = [];
-}
     invoice.history.push({
       action: "Files Added",
       note: `${files.length} file(s) uploaded`,
+
     });
 
     await invoice.save();
@@ -270,17 +257,14 @@ exports.updateInvoice = async (req, res) => {
 
     invoice.totalAmount = totalAmount;
 
-    if (!invoice.history) {
-  invoice.history = [];
-}
+
+invoice.history.push({
+  action: "Updated",
+  note: "Invoice details updated",
+});
 
 
-    invoice.history.push({
-      action: "Updated",
-      note: "Invoice details updated",
-    });
-
-    await invoice.save();
+await invoice.save();
 
     return res.status(200).json({
       success: true,

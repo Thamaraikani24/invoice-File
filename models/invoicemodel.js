@@ -1,11 +1,11 @@
 const mongoose = require("mongoose");
 
-const uploadedFileSchema = new mongoose.Schema(
+const uploadedFileSchema = new mongoose.Schema(    //uploaded file schema
   {
     fileName: {
       type: String,
       required: true,
-      trim: true,
+      trim: true,                
     },
     fileUrl: {
       type: String,
@@ -31,7 +31,7 @@ const uploadedFileSchema = new mongoose.Schema(
   { _id: true }
 );
 
-const historySchema = new mongoose.Schema(
+const historySchema = new mongoose.Schema(    // history schema to track invoice actions
   {
     action: {
       type: String,
@@ -49,7 +49,7 @@ const historySchema = new mongoose.Schema(
   { _id: true }
 );
 
-const invoiceSchema = new mongoose.Schema(
+const invoiceSchema = new mongoose.Schema(    // main invoice schema
   {
     invoiceName: {
       type: String,
@@ -80,6 +80,10 @@ const invoiceSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    history: {
+  type: [historySchema],   // array of history entries to track changes and actions on the invoice
+  default: [],
+},
     
   },
   {
